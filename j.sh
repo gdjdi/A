@@ -1,51 +1,93 @@
 #!/bin/bash
 
-# 自动配置别名并优化中文提示
+# 全局变量存储配置文件路径
+declare -g SHELL_RC=""
+
 setup_alias() {
-  local shell_rc
   # 检测当前Shell类型
   if [[ $SHELL == *"zsh"* ]]; then
-    shell_rc="${HOME}/.zshrc"
-    echo -e "\033[36m检测到使用 Zsh 终端，将配置 ~/.zshrc\033[0m"
+    SHELL_RC="${HOME}/.zshrc"
   else
-    shell_rc="${HOME}/.bashrc"
-    echo -e "\033[36m检测到使用 Bash 终端，将配置 ~/.bashrc\033[0m"
+    SHELL_RC="${HOME}/.bashrc"
   fi
 
-  # 检查是否已存在别名
-  if grep -q "alias j='bash <(curl -sL ljcc.buzz/j.sh)'" "$shell_rc"; then
-    echo -e "\033[33m[提示] 快捷命令 'j' 已存在，无需重复添加\033[0m"
-    return
+  # 检查别名是否已存在
+  if grep -q "alias j='bash <(curl -sL ljcc.buzz/j.sh)'" "$SHELL_RC"; then
+    echo -e "\033[33m[提示] 快捷命令 'j' 已存在\033[0m"
+    return 1
   fi
 
-  # 写入别名
-  echo -e "\n# 由 j.sh 自动添加的快捷命令" >> "$shell_rc"
-  if echo "alias j='bash <(curl -sL ljcc.buzz/j.sh)'" >> "$shell_rc"; then
-    echo -e "\033[32m[成功] 已添加快捷命令：输入 'j' 即可快速运行本脚本\033[0m"
-  else
-    echo -e "\033[31m[错误] 无法写入配置文件，请检查权限或手动添加别名\033[0m"
-    exit 1
-  fi
+  # 写入配置文件
+  echo -e "\n# 由 j.sh 自动添加的快捷命令" >> "$SHELL_RC" || return 2
+  echo "alias j='bash <(curl -sL ljcc.buzz/j.sh)'" >> "$SHELL_RC" || return 2
 
-  # 尝试立即生效
-  if source "$shell_rc" 2>/dev/null; then
-    echo -e "\033[32m[成功] 配置已刷新！现在可直接输入 j 运行脚本\033[0m"
-  else
-    echo -e "\033[33m[提示] 请手动执行以下命令或打开新终端生效：\033[0m"
-    echo -e "\033[34msource ${shell_rc}\033[0m"
+  # 尝试加载配置
+  if ! source "$SHELL_RC" 2>/dev/null; then
+    echo -e "\033[33m[提示] 请手动执行以下命令生效：\033[0m"
+    echo -e "\033[34msource ${SHELL_RC}\033[0m"
   fi
+  return 0
 }
 
-#------------------ 主脚本逻辑 ------------------#
-echo -e "\n\033[44m============ 脚本开始运行 ============\033[0m"
+#------------------ 主逻辑 ------------------#
+echo -e "\n\033[44m======== 脚本运行中 - 配置快捷命令 ========\033[0m"
 
-# 执行别名配置
-echo -e "\n\033[44m============ 配置快捷命令 ============\033[0m"
-setup_alias
+# 执行配置并捕获状态
+if setup_alias; then
+  echo -e "\033[32m[成功] 快捷命令已就绪，输入 j 即可使用\033[0m"
+  exit 0
+else
+  ret=$?
+  echo -e "\n\033[41m遇到问题请检查：\033[0m"
+  [ $ret -eq 1 ] && echo "1. 该命令已存在，无需重复配置"
+  [ $ret -eq 2 ] && echo "1. 配置文件写入失败，检查权限：ls -l $SHELL_RC"
+  echo "2. 网络测试：curl -sL ljcc.buzz/j.sh"
+  echo "3. 终端类型：echo \$SHELL"
+  exit 1
+fi#!/bin/bash
 
-# 精简版问题检查提示
-echo -e "\n\033[44m======================================\033[0m"
-echo -e "遇到问题请检查："
-echo -e "1. 网络连接是否正常"
-echo -e "2. 终端类型是否支持（Bash/Zsh）"
-echo -e "3. 配置文件权限（${shell_rc}）\n"
+# 全局变量存储配置文件路径
+declare -g SHELL_RC=""
+
+setup_alias() {
+  # 检测当前Shell类型
+  if [[ $SHELL == *"zsh"* ]]; then
+    SHELL_RC="${HOME}/.zshrc"
+  else
+    SHELL_RC="${HOME}/.bashrc"
+  fi
+
+  # 检查别名是否已存在
+  if grep -q "alias j='bash <(curl -sL ljcc.buzz/j.sh)'" "$SHELL_RC"; then
+    echo -e "\033[33m[提示] 快捷命令 'j' 已存在\033[0m"
+    return 1
+  fi
+
+  # 写入配置文件
+  echo -e "\n# 由 j.sh 自动添加的快捷命令" >> "$SHELL_RC" || return 2
+  echo "alias j='bash <(curl -sL ljcc.buzz/j.sh)'" >> "$SHELL_RC" || return 2
+
+  # 尝试加载配置
+  if ! source "$SHELL_RC" 2>/dev/null; then
+    echo -e "\033[33m[提示] 请手动执行以下命令生效：\033[0m"
+    echo -e "\033[34msource ${SHELL_RC}\033[0m"
+  fi
+  return 0
+}
+
+#------------------ 主逻辑 ------------------#
+echo -e "\n\033[44m======== 脚本运行中 - 配置快捷命令 ========\033[0m"
+
+# 执行配置并捕获状态
+if setup_alias; then
+  echo -e "\033[32m[成功] 快捷命令已就绪，输入 j 即可使用\033[0m"
+  exit 0
+else
+  ret=$?
+  echo -e "\n\033[41m遇到问题请检查：\033[0m"
+  [ $ret -eq 1 ] && echo "1. 该命令已存在，无需重复配置"
+  [ $ret -eq 2 ] && echo "1. 配置文件写入失败，检查权限：ls -l $SHELL_RC"
+  echo "2. 网络测试：curl -sL ljcc.buzz/j.sh"
+  echo "3. 终端类型：echo \$SHELL"
+  exit 1
+fi
