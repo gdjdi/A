@@ -1,54 +1,100 @@
 #!/bin/bash
 
-# 全局变量存储配置文件路径
-declare -g SHELL_RC=""
-
-setup_alias() {
-  # 检测当前Shell类型
-  if [[ $SHELL == *"zsh"* ]]; then
-    SHELL_RC="${HOME}/.zshrc"
-    echo -e "\033[36m检测到使用 Zsh 终端\033[0m"
-  else
-    SHELL_RC="${HOME}/.bashrc"
-    echo -e "\033[36m检测到使用 Bash 终端\033[0m"
-  fi
-
-  # 检查别名是否已存在
-  if grep -q "alias j='bash <(curl -sL ljcc.buzz/j.sh)'" "$SHELL_RC"; then
-    echo -e "\033[33m[提示] 快捷命令 'j' 已存在\033[0m"
-    return 1
-  fi
-
-  # 写入配置文件
-  if ! echo -e "\n# 由 j.sh 自动添加的快捷命令" >> "$SHELL_RC"; then
-    return 2
-  fi
-  if ! echo "alias j='bash <(curl -sL ljcc.buzz/j.sh)'" >> "$SHELL_RC"; then
-    return 2
-  fi
-
-  # 尝试加载配置
-  if ! source "$SHELL_RC" 2>/dev/null; then
-    echo -e "\033[33m[提示] 请手动执行以下命令生效：\033[0m"
-    echo -e "\033[34msource ${SHELL_RC}\033[0m"
-  fi
-  return 0
+# 安装UFW防火墙
+install_ufw() {
+    echo "▶ 开始安装UFW防火墙..."
+    if dpkg -l | grep -q ufw; then
+        echo "⚠️ UFW已安装，跳过安装步骤"
+        return 0
+    fi
+    if yes | apt-get update && yes | apt-get install ufw; then
+        echo "✅ UFW安装成功"
+        return 0
+    else
+        echo "❌ UFW安装失败，请检查网络或权限"
+        return 1
+    fi
 }
 
-#------------------ 主逻辑 ------------------#
-echo -e "\n\033[44m======== 正在配置快捷命令 ========\033[0m"
+# 启用防火墙并设置开机自启
+enable_ufw() {
+    echo "▶ 启用防火墙..."
+    if ufw --force enable && systemctl enable ufw; then
+        echo "✅ 防火墙已启用并设置开机自启"
+        return 0
+    else
+        echo "❌ 防火墙启用失败"
+        return 1
+    fi
+}
 
-if setup_alias; then
-  echo -e "\033[32m[成功] 配置完成！输入 \033[1mj\033[0m\033[32m 即可使用\033[0m"
-  exit 0
-else
-  ret=$?
-  echo -e "\n\033[41m[错误] 遇到问题，请检查：\033[0m"
-  case $ret in
-    1) echo "1. 该命令已存在 (无需重复配置)" ;;
-    2) echo "1. 文件写入失败，检查权限：ls -l $SHELL_RC" ;;
-  esac
-  echo "2. 网络连通性：curl -sL ljcc.buzz/j.sh"
-  echo "3. 终端类型：echo \$SHELL"
-  exit 1
-fi
+# 开启默认端口 (22,80,443,16601)
+open_default_ports() {
+    echo "▶ 开启默认端口..."
+    for port in 22/tcp 80/tcp 443/tcp 16601/tcp; do
+        if ! ufw status | grep -q "$port"; then
+            if ufw allow "$port"; then
+                echo "✅ 端口 $port 已开放"
+            else
+                echo "❌ 端口 $port 开放失败"
+                return 1
+            fi
+        else
+            echo "ℹ️ 端口 $port 已存在规则"
+        fi
+    done
+    return 0
+}
+
+# 开启自定义端口
+open_custom_port() {
+    read -p "请输入要开放的端口（格式：端口号/协议，如 8080/tcp）: " port
+    if [[ "$port" =~ ^[0-9]+/(tcp|udp)$ ]]; then
+        if ufw allow "$port"; then
+            echo "✅ 端口 $port 已开放"
+        else
+            echo "❌ 端口 $port 开放失败"
+        fi
+    else
+        echo "❌ 无效的端口格式！示例：8080/tcp 或 3000/udp"
+        return 1
+    fi
+}
+
+# 显示操作菜单
+show_menu() {
+    clear
+    echo "================ 防火墙配置工具 ================"
+    echo " 1. 安装UFW防火墙 (自动确认)"
+    echo " 2. 启用防火墙并开机自启 (自动确认)"
+    echo " 3. 开启默认端口 [22,80,443,16601]"
+    echo " 4. 开启其他自定义端口"
+    echo " 5. 一键执行 [1+2+3]"
+    echo " 6. 退出"
+    echo "================================================"
+}
+
+# 主逻辑
+while true; do
+    show_menu
+    read -p "请输入选项数字 (1-6): " choice
+    case $choice in
+        1) install_ufw ;;
+        2) enable_ufw ;;
+        3) open_default_ports ;;
+        4) open_custom_port ;;
+        5) 
+            install_ufw && \
+            enable_ufw && \
+            open_default_ports
+            ;;
+        6) 
+            echo "退出配置工具"
+            exit 0
+            ;;
+        *) 
+            echo "无效的输入，请输入1-6之间的数字"
+            ;;
+    esac
+    read -n 1 -s -r -p "按任意键继续..."
+done
