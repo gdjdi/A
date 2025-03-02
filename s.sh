@@ -1,28 +1,6 @@
- #!/bin/bash
-
-# 定义要测试的端口列表
-ports=("25" "465" "587" "2525")
-
-# 定义要连接的主机
-host="in-v3.mailjet.com"
-
-# 定义超时时间（单位：秒）
-timeout_duration=3
-
-# 定义结果变量
-results=""
-
-# 循环测试每个端口
-for port in "${ports[@]}"
-do
-    echo "正在测试端口 $port..."
-    if timeout $timeout_duration bash -c "</dev/tcp/$host/$port" >/dev/null 2>&1; then
-        results+="端口 $port 已开启\n"
-    else
-        results+="端口 $port 未开启\n"
-    fi
-    echo
-done
-
-# 输出结果
-echo -e "Results:\n$results"
+#!/bin/bash echo "Hello World"
+[root@localhost ~]# sh hello_script.sh 
+Hello World
+[root@localhost ~]# chmod +x hello_script.sh 
+[root@localhost ~]# ./hello_script.sh 
+Hello World
