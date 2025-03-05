@@ -10,9 +10,9 @@ BLUE="\033[36m"     # Info message
 PLAIN='\033[0m'
 
 V6_PROXY=""
-IP=`curl -sL -4 ip.sb`
+IP=`curl -sL -6 ip.sb`
 if [[ "$?" != "0" ]]; then
-    IP=`curl -sL -6 ip.sb`
+    IP=`curl -sL -4 ip.sb`
     V6_PROXY="https://gh.hijk.art/"
 fi
 
@@ -615,18 +615,72 @@ showLog() {
     tail /var/log/shadowsocksr.log
 }
 
+getData() {
+    echo ""
+    # 随机生成密码
+    PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
+    echo " 生成的随机密码： $PASSWORD"
+
+    # 端口号
+    while true; do
+        PORT=`shuf -i1025-65000 -n1`  # 随机生成一个端口
+        echo " 使用随机生成的端口号： $PORT"
+        break
+    done
+
+    # 默认加密方式、协议和混淆模式
+    METHOD="aes-256-cfb"
+    PROTOCOL="origin"
+    OBFS="plain"
+
+    echo ""
+    colorEcho $BLUE " 加密方式： $METHOD"
+    colorEcho $BLUE " SSR协议： $PROTOCOL"
+    colorEcho $BLUE " 混淆模式： $OBFS"
+}
+
+install() {
+    getData  # 获取数据并自动设置
+
+    preinstall
+    installBBR
+    installSSR
+    configSSR
+    setFirewall
+
+    start
+    showInfo
+
+    bbrReboot
+}
+
+start() {
+    res=`status`
+    if [[ $res -lt 2 ]]; then
+        echo -e " ${RED}SSR未安装，请先安装！${PLAIN}"
+        return
+    fi
+    systemctl restart ${NAME}
+    sleep 2
+    port=`grep server_port $CONFIG_FILE | cut -d: -f2 | tr -d \",' '`
+    res=`netstat -nltp | grep ${port} | grep python`
+    if [[ "$res" = "" ]]; then
+        colorEcho $RED " SSR启动失败，请检查端口是否被占用！"
+    else
+        colorEcho $BLUE " SSR启动成功！"
+    fi
+}
+
 menu() {
     clear
     echo "#############################################################"
-    echo -e "#             ${RED}ShadowsocksR/SSR 一键安装脚本${PLAIN}               #"
-    echo -e "# ${GREEN}作者${PLAIN}: 梯子博客                                        #"
-    echo -e "# ${GREEN}网址${PLAIN}: https://tizi.blog                                    #"
-    echo -e "# ${GREEN}论坛${PLAIN}: https://tizi.blog                                   #"
-    echo "#############################################################"
+echo -e "#             ${RED}ShadowsocksR/SSR 一键安装${PLAIN}               #"
+echo "##############################################################"
     echo ""
 
     echo -e "  ${GREEN}1.${PLAIN}  安装SSR"
     echo -e "  ${GREEN}2.  ${RED}卸载SSR${PLAIN}"
+    echo -e "  ${GREEN}3.${PLAIN}  自动安装SSR并模拟回车5次"
     echo " -------------"
     echo -e "  ${GREEN}4.${PLAIN}  启动SSR"
     echo -e "  ${GREEN}5.${PLAIN}  重启SSR"
@@ -653,6 +707,9 @@ menu() {
             ;;
         2)
             uninstall
+            ;;
+        3)
+            install  # 自动安装SSR
             ;;
         4)
             start
