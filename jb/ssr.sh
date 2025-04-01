@@ -470,4 +470,286 @@ showInfo() {
     
     p1=`echo -n ${password} | base64 -w 0`
     p1=`echo -n ${p1} | tr -d =`
-    res=`echo -n "${IP}:${port}:${protocol}:${method}:${obfs}:
+    res=`echo -n "${IP}:${port}:${protocol}:${method}:${obfs}:${p1}/?remarks=&protoparam=&obfsparam=" | base64 -w 0`
+    res=`echo -n ${res} | tr -d =`
+    link="ssr://${res}"
+
+    echo ""
+    echo ============================================
+    echo -e " ${BLUE}ssr运行状态：${PLAIN}${status}"
+    echo -e " ${BLUE}ssr配置文件：${PLAIN}${RED}$CONFIG_FILE${PLAIN}"
+    echo ""
+    echo -e " ${RED}ssr配置信息：${PLAIN}"
+    echo -e "   ${BLUE}IP(address):${PLAIN}  ${RED}${IP}${PLAIN}"
+    echo -e "   ${BLUE}端口(port)：${PLAIN}${RED}${port}${PLAIN}"
+    echo -e "   ${BLUE}密码(password)：${PLAIN}${RED}${password}${PLAIN}"
+    echo -e "   ${BLUE}加密方式(method)：${PLAIN} ${RED}${method}${PLAIN}"
+    echo -e "   ${BLUE}协议(protocol)：${PLAIN} ${RED}${protocol}${PLAIN}"
+    echo -e "   ${BLUE}混淆(obfuscation)：${PLAIN} ${RED}${obfs}${PLAIN}"
+    echo
+    echo -e " ${BLUE}ssr链接:${PLAIN} $link"
+    #qrencode -o - -t utf8 $link
+}
+
+showQR() {
+    res=`status`
+    if [[ $res -lt 2 ]]; then
+        echo -e " ${RED}SSR未安装，请先安装！${PLAIN}"
+        return
+    fi
+    port=`grep server_port $CONFIG_FILE| cut -d: -f2 | tr -d \",' '`
+    res=`netstat -nltp | grep ${port} | grep python`
+    [[ -z "$res" ]] && status="${RED}已停止${PLAIN}" || status="${GREEN}正在运行${PLAIN}"
+    password=`grep password $CONFIG_FILE| cut -d: -f2 | tr -d \",' '`
+    method=`grep method $CONFIG_FILE| cut -d: -f2 | tr -d \",' '`
+    protocol=`grep protocol $CONFIG_FILE| cut -d: -f2 | tr -d \",' '`
+    obfs=`grep obfs $CONFIG_FILE| cut -d: -f2 | tr -d \",' '`
+    
+    p1=`echo -n ${password} | base64 -w 0`
+    p1=`echo -n ${p1} | tr -d =`
+    res=`echo -n "${IP}:${port}:${protocol}:${method}:${obfs}:${p1}/?remarks=&protoparam=&obfsparam=" | base64 -w 0`
+    res=`echo -n ${res} | tr -d =`
+    link="ssr://${res}"
+    qrencode -o - -t utf8 $link
+}
+
+bbrReboot() {
+    if [[ "${INSTALL_BBR}" == "true" ]]; then
+        echo  
+        colorEcho $BLUE  " 为使BBR模块生效，系统将在30秒后重启"
+        echo  
+        echo -e " 您可以按 ctrl + c 取消重启，稍后输入 ${RED}reboot${PLAIN} 重启系统"
+        sleep 30
+        reboot
+    fi
+}
+
+
+install() {
+    getData
+    preinstall
+    installBBR
+    installSSR
+    configSSR
+    setFirewall
+
+    start
+    showInfo
+    
+    bbrReboot
+}
+
+reconfig() {
+    res=`status`
+    if [[ $res -lt 2 ]]; then
+        echo -e " ${RED}SSR未安装，请先安装！${PLAIN}"
+        return
+    fi
+    getData
+    configSSR
+    setFirewall
+    restart
+
+    showInfo
+}
+
+uninstall() {
+    res=`status`
+    if [[ $res -lt 2 ]]; then
+        echo -e " ${RED}SSR未安装，请先安装！${PLAIN}"
+        return
+    fi
+
+    echo ""
+    read -p " 确定卸载SSR吗？(y/n)" answer
+    [[ -z ${answer} ]] && answer="n"
+
+    if [[ "${answer}" == "y" ]] || [[ "${answer}" == "Y" ]]; then
+        rm -f $CONFIG_FILE
+        rm -f /var/log/shadowsocksr.log
+        rm -rf /usr/local/shadowsocks
+        systemctl disable shadowsocksR && systemctl stop shadowsocksR && rm -rf $SERVICE_FILE
+    fi
+    echo -e " ${RED}卸载成功${PLAIN}"
+}
+
+start() {
+    res=`status`
+    if [[ $res -lt 2 ]]; then
+        echo -e " ${RED}SS未安装，请先安装！${PLAIN}"
+        return
+    fi
+    systemctl restart ${NAME}
+    sleep 2
+    port=`grep server_port $CONFIG_FILE| cut -d: -f2 | tr -d \",' '`
+    res=`netstat -nltp | grep ${port} | grep python`
+    if [[ "$res" = "" ]]; then
+        colorEcho $RED " SSR启动失败，请检查端口是否被占用！"
+    else
+        colorEcho $BLUE " SSR启动成功！"
+    fi
+}
+
+restart() {
+    res=`status`
+    if [[ $res -lt 2 ]]; then
+        echo -e " ${RED}SSR未安装，请先安装！${PLAIN}"
+        return
+    fi
+
+    stop
+    start
+}
+
+stop() {
+    res=`status`
+    if [[ $res -lt 2 ]]; then
+        echo -e " ${RED}SSR未安装，请先安装！${PLAIN}"
+        return
+    fi
+    systemctl stop ${NAME}
+    colorEcho $BLUE " SSR停止成功"
+}
+
+showLog() {
+    tail /var/log/shadowsocksr.log
+}
+
+getData() {
+    echo ""
+    # 随机生成密码
+    PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
+    echo " 生成的随机密码： $PASSWORD"
+
+    # 端口号
+    while true; do
+        PORT=`shuf -i1025-65000 -n1`  # 随机生成一个端口
+        echo " 使用随机生成的端口号： $PORT"
+        break
+    done
+
+    # 默认加密方式、协议和混淆模式
+    METHOD="aes-256-cfb"
+    PROTOCOL="origin"
+    OBFS="plain"
+
+    echo ""
+    colorEcho $BLUE " 加密方式： $METHOD"
+    colorEcho $BLUE " SSR协议： $PROTOCOL"
+    colorEcho $BLUE " 混淆模式： $OBFS"
+}
+
+install() {
+    getData  # 获取数据并自动设置
+
+    preinstall
+    installBBR
+    installSSR
+    configSSR
+    setFirewall
+
+    start
+    showInfo
+
+    bbrReboot
+}
+
+start() {
+    res=`status`
+    if [[ $res -lt 2 ]]; then
+        echo -e " ${RED}SSR未安装，请先安装！${PLAIN}"
+        return
+    fi
+    systemctl restart ${NAME}
+    sleep 2
+    port=`grep server_port $CONFIG_FILE | cut -d: -f2 | tr -d \",' '`
+    res=`netstat -nltp | grep ${port} | grep python`
+    if [[ "$res" = "" ]]; then
+        colorEcho $RED " SSR启动失败，请检查端口是否被占用！"
+    else
+        colorEcho $BLUE " SSR启动成功！"
+    fi
+}
+
+menu() {
+    clear
+    echo "#############################################################"
+echo -e "#             ${RED}ShadowsocksR/SSR 一键安装${PLAIN}               #"
+echo "##############################################################"
+    echo ""
+
+    echo -e "  ${GREEN}1.${PLAIN}  安装SSR"
+    echo -e "  ${GREEN}2.  ${RED}卸载SSR${PLAIN}"
+    echo -e "  ${GREEN}3.${PLAIN}  自动安装SSR并模拟回车5次"
+    echo " -------------"
+    echo -e "  ${GREEN}4.${PLAIN}  启动SSR"
+    echo -e "  ${GREEN}5.${PLAIN}  重启SSR"
+    echo -e "  ${GREEN}6.${PLAIN}  停止SSR"
+    echo " -------------"
+    echo -e "  ${GREEN}7.${PLAIN}  查看SSR配置"
+    echo -e "  ${GREEN}8.${PLAIN}  查看配置二维码"
+    echo -e "  ${GREEN}9.  ${RED}修改SSR配置${PLAIN}"
+    echo -e "  ${GREEN}10.${PLAIN} 查看SSR日志"
+    echo " -------------"
+    echo -e "  ${GREEN}0.${PLAIN} 退出"
+    echo 
+    echo -n " 当前状态："
+    statusText
+    echo 
+
+    read -p " 请选择操作[0-10]：" answer
+    case $answer in
+        0)
+            exit 0
+            ;;
+        1)
+            install
+            ;;
+        2)
+            uninstall
+            ;;
+        3)
+            install  # 自动安装SSR
+            ;;
+        4)
+            start
+            ;;
+        5)
+            restart
+            ;;
+        6)
+            stop
+            ;;
+        7)
+            showInfo
+            ;;
+        8)
+            showQR
+            ;;
+        9)
+            reconfig
+            ;;
+        10)
+            showLog
+            ;;
+        *)
+            echo -e "$RED 请选择正确的操作！${PLAIN}"
+            exit 1
+            ;;
+    esac
+}
+
+checkSystem
+
+action=$1
+[[ -z $1 ]] && action=menu
+case "$action" in
+    menu|install|uninstall|start|restart|stop|showInfo|showQR|showLog)
+        ${action}
+        ;;
+    *)
+        echo " 参数错误"
+        echo " 用法: `basename $0` [menu|install|uninstall|start|restart|stop|showInfo|showQR|showLog]"
+        ;;
+esac
+
