@@ -1,0 +1,7 @@
+fhq.sh
+Lucky.sh
+k.sh
+ssr.sh
+v2.sh
+zhengshu.sh
+filebrowser.sh
