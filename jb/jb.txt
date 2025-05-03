@@ -4,4 +4,4 @@ k.sh
 ssr.sh
 v2.sh
 zhengshu.sh
-filebrowser.sh
+wjj.sh
