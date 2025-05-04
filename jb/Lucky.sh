@@ -1,7 +1,7 @@
 #!/bin/bash
 clear
 
-DEFAULT_LINK="https://juh.cc/rj/lucky_2.15.8_Linux_x86_64.tar.gz"
+DEFAULT_LINK="950726.xyz/rj/lucky_14.0.tar.gz"
 LUCKY_DIR="/opt/lucky"
 LUCKY_BIN="$LUCKY_DIR/lucky"
 LOG_DIR="/opt/A/rizi"
