@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 创建快捷运行
-if ! command -v g >/dev/null 2>&1; then [[ $EUID -ne 0 ]] && echo "无root权" && exit 1; curl -sL "https://juh.cc/g.sh" -o "/usr/local/bin/g" && chmod +x "/usr/local/bin/g" && echo "可以 g 使用" || { echo "安装失败"; exit 1; }; fi
+if ! command -v g >/dev/null 2>&1; then [[ $EUID -ne 0 ]] && echo "无root权" && exit 1; curl -sL "https://g.juh.cc/g.sh" -o "/usr/local/bin/g" && chmod +x "/usr/local/bin/g" && echo "可以 g 使用" || { echo "安装失败"; exit 1; }; fi
 
 BASE_URLS=("https://g.juh.cc/jb" )
 
