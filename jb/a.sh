@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if ! command -v a >/dev/null 2>&1; then [[ $EUID -ne 0 ]] && echo "错误1" && exit 1; curl -sL "https://juh.cc/a.sh" -o "/usr/local/bin/a" && chmod +x "/usr/local/bin/a" && echo "成功" || { echo "错误2"; exit 1; }; fi
+if ! command -v a >/dev/null 2>&1; then [[ $EUID -ne 0 ]] && echo "错误1" && exit 1; curl -sL "https://g.juh.cc/jb/a.sh" -o "/usr/local/bin/a" && chmod +x "/usr/local/bin/a" && echo "成功" || { echo "错误2"; exit 1; }; fi
 
 jb_url=("https://juh.cc/jb" )
 jb_wj0="main"
