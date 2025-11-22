@@ -12,7 +12,7 @@ alias p6='ping6 -c 4'
 alias yz='nginx -t'
 alias cz='nginx -s reload'
 command_not_found_handle() {
-    echo "bash: $1: 未找到命令"
+    echo "bash: $1: 没有命令"
     return 127
 }
 EOF
@@ -86,46 +86,35 @@ flush ruleset
 
 table inet filter {
   set whitelist {
-    type ipv4_addr
-    flags interval
+ type ipv4_addr
+ flags interval
   } 
 
   set ipv6_whitelist {
-    type ipv6_addr
-    flags interval
+ type ipv6_addr
+ flags interval
   }
 
-  set auto_block {
-    type ipv4_addr
-    flags timeout
-    timeout 1h
+  chain input {
+ type filter hook input priority 0; policy drop;
+ ip saddr @whitelist accept
+ ip6 saddr @ipv6_whitelist accept
+ iifname "lo" accept
+ ip protocol icmp accept
+ ip6 nexthdr icmpv6 accept
+ ct state established,related accept
   }
   
-  chain input {
-    type filter hook input priority 0; policy drop;
-    ip saddr @whitelist accept
-    ip6 saddr @ipv6_whitelist accept
-    ip saddr @auto_block drop
-    iifname "lo" accept
-    ip protocol icmp accept
-    ip6 nexthdr icmpv6 accept
-    ct state established,related accept
-    tcp dport {80,443} accept
-    
-    # 自动屏蔽规则必须在链内
-    tcp flags syn add @auto_block { ip saddr } limit rate over 15/minute burst 5 packets
-  }  
-  
   chain output {
-    type filter hook output priority 0; policy accept;
+ type filter hook output priority 0; policy accept;
   }
 }
 EOF
  echo "nftables规则创建完成"
  nft -f $fhq_wjxx
- mbd
  systemctl restart nftables
  systemctl enable nftables > /dev/null 2>&1
+ mbd
 }
 
 bcwj() {
@@ -139,10 +128,10 @@ main_menu() {
   echo "=============================="
   echo "   防火墙管理"
   echo "=============================="
-  echo "1: 查看暴力日志"
+  echo "1: 暴力日志"
   echo "2: 查看防火墙"
   echo "3: 快捷命令"
-  echo "4: 修改SSH端口(当前: $(dq_ssh))"
+  echo "4: SSH端口$(dq_ssh)"
   echo "5: 配置防火墙"
   echo "0: 退出"
   echo "=============================="
