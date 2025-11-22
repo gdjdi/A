@@ -103,6 +103,8 @@ table inet filter {
  ip protocol icmp accept
  ip6 nexthdr icmpv6 accept
  ct state established,related accept
+ nft add rule inet filter input ip protocol tcp tcp dport {80} accept
+nft add rule inet filter input ip protocol tcp tcp dport {443} accept
   }
   
   chain output {
