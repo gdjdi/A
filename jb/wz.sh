@@ -194,6 +194,7 @@ echo "🔄 恢复文件中..."
 rm -rf "$jydwj"
 echo "🎉 恢复完成!"
 echo "💡 请重启Nginx: sudo systemctl restart nginx"
+rm -f $wz_lj/default
 test_nginx
 }
 
