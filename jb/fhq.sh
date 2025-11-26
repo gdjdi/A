@@ -11,6 +11,7 @@ alias p='ping -c 4'
 alias p6='ping6 -c 4'
 alias yz='nginx -t'
 alias cz='nginx -s reload'
+alias czmm='passwd'
 command_not_found_handle() {
     echo "bash: $1: 没有命令"
     return 127
